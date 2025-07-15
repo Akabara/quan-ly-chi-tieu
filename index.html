@@ -354,7 +354,11 @@
                 const transactionsQuery = query(collection(db, `artifacts/${appId}/users/${userId}/transactions`));
                 onSnapshot(transactionsQuery, (snapshot) => {
                     this.allTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    this.allTransactions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+                    this.allTransactions.sort((a, b) => {
+                        const timeA = a.createdAt ? a.createdAt.toMillis() : 0;
+                        const timeB = b.createdAt ? b.createdAt.toMillis() : 0;
+                        return timeB - timeA;
+                    });
                     this.renderDisplay();
                 });
             }
@@ -366,11 +370,13 @@
                 let filteredTransactions = this.allTransactions;
                 if (this.filters.date) {
                     filteredTransactions = this.allTransactions.filter(t => {
+                        if (!t.createdAt) return false; // Ignore transactions being created
                         const tDate = t.createdAt.toDate().toISOString().split('T')[0];
                         return tDate === this.filters.date;
                     });
                 } else if (this.filters.month) {
                     filteredTransactions = this.allTransactions.filter(t => {
+                        if (!t.createdAt) return false; // Ignore transactions being created
                         const tMonth = t.createdAt.toDate().toISOString().slice(0, 7);
                         return tMonth === this.filters.month;
                     });
@@ -405,14 +411,20 @@
             }
 
             createTransactionElement(transaction) {
-                 const transactionEl = document.createElement('div');
+                const transactionEl = document.createElement('div');
                 transactionEl.className = `flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50 rounded-lg mb-2`;
+                
+                // **FIX:** Check if createdAt exists before calling toDate()
+                const displayDate = transaction.createdAt 
+                    ? transaction.createdAt.toDate().toLocaleString('vi-VN') 
+                    : 'Đang xử lý...';
+
                 transactionEl.innerHTML = `
                     <div class="flex items-center gap-4 flex-grow">
                         <div class="text-3xl">${transaction.categoryIcon || '#️⃣'}</div>
                         <div class="flex-grow">
                             <p class="font-semibold">${transaction.description}</p>
-                            <p class="text-sm text-gray-500">${transaction.createdAt.toDate().toLocaleString('vi-VN')}</p>
+                            <p class="text-sm text-gray-500">${displayDate}</p>
                         </div>
                     </div>
                     <div class="text-right mr-4">
@@ -484,9 +496,9 @@
             
             getCategoryOptions(selectedCategoryIcon) {
                 const categories = [
-                    { icon: '�', name: 'Đồ ăn' }, { icon: '🍹', name: 'Đồ uống' }, { icon: '🥦', name: 'Đi chợ' },
+                    { icon: '🍔', name: 'Đồ ăn' }, { icon: '🍹', name: 'Đồ uống' }, { icon: '🥦', name: 'Đi chợ' },
                     { icon: '🛵', name: 'Giao thông' }, { icon: '🏡', name: 'Nhà cửa' }, { icon: '🛍', name: 'Mua sắm' },
-                    { icon: '🎮', name: 'Giải trí' }, { icon: '🎓', name: 'Giáo dục' }, { icon: '🏥', name: 'Sức khỏe' },
+                    { icon: '🎮', name: 'Giải trí' }, { icon: '🎓', name: 'Giáo dục' }, { icon: '�', name: 'Sức khỏe' },
                     { icon: '🏖', name: 'Du lịch' }, { icon: '💰', name: 'Lương/Thu nhập' }, { icon: '💸', name: 'Kinh doanh' },
                     { icon: '🎁', name: 'Quà tặng' }, { icon: '#️⃣', name: 'Khác' }
                 ];
@@ -670,7 +682,7 @@
         class GeminiAI {
             constructor() {
                 this.apiKey = "AIzaSyAnqAiCb-2A1x-CBRDiHXZEi8hEyHGVnMo"; // API Key updated
-                this.apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`;
+                this.apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
             }
 
             async analyzeTransaction(userInput) {
